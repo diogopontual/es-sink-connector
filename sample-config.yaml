@@ -1,0 +1,8 @@
+apiVersion: 0.1.0
+meta:
+  version: 0.1.0
+  name: my-es-sink-connector-test-connector
+  type: es-sink-connector-sink
+  topic: testing
+custom:
+  foo: bar
