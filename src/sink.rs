@@ -1,18 +1,34 @@
 use anyhow::Result;
-use elasticsearch::Elasticsearch;
+use elasticsearch::{auth::Credentials, http::transport::Transport, Elasticsearch};
 use fluvio::Offset;
 use fluvio_connector_common::{LocalBoxSink, Sink};
 use async_trait::async_trait;
 use crate::config::ElasticSearchConfig;
 
 pub(crate) struct ElasticSearchSink{
-    client: Elasticsearch
+    client: Elasticsearch,
+    index: String
 }
 
 impl ElasticSearchSink{
-    pub(crate) fn new(config: &ElasticSearchConfig) -> Result<Self>{
-        let client = Elasticsearch::default();
-        Ok(Self { client })
+    pub(crate) fn new(config: ElasticSearchConfig) -> Result<Self>{
+        let client: Elasticsearch;
+        match config.secure_enabled {
+            false => {
+                let transport = Transport::single_node(&config.url)?;
+                client = Elasticsearch::new(transport);
+            },
+            _ => {
+                let credentials = Credentials::Basic(config.username, config.password);
+                let transport = Transport::cloud(&config.url, credentials)?;
+                client = Elasticsearch::new(transport);
+            } 
+        }
+        
+           
+        Ok(Self { client, 
+            index: config.index,
+        })
     }
 }
 

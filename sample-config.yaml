@@ -5,4 +5,6 @@ meta:
   type: es-sink-connector-sink
   topic: testing
 custom:
-  foo: bar
+  url: http://127.0.1:9200
+  secureEnabled: false
+  index: test-index

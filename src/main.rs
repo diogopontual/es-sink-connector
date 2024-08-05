@@ -6,13 +6,19 @@ use config::ElasticSearchConfig;
 
 use futures::StreamExt;
 
-use fluvio_connector_common::{connector, consumer::ConsumerStream, Result};
+use fluvio_connector_common::{connector, consumer::ConsumerStream, Result, tracing};
+use sink::ElasticSearchSink;
 
 #[connector(sink)]
 async fn start(config: ElasticSearchConfig, mut stream: impl ConsumerStream) -> Result<()> {
-    println!("Starting es-sink-connector sink connector with {config:?}");
+    tracing::debug!(?config);
+    
+    let sink = ElasticSearchSink::new(config)?;
+
     while let Some(Ok(record)) = stream.next().await {
+        tracing::debug!("Received record in consumer");
         let val = String::from_utf8_lossy(record.value());
+        
         println!("{val}");
     }
     Ok(())
