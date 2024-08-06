@@ -7,5 +7,5 @@ pub(crate) struct ElasticSearchConfig {
     pub username: String,
     pub password: String,
     pub url: String,
-    pub secure_enabled: bool
+    pub secure_enabled: bool,
 }

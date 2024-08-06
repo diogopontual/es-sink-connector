@@ -5,6 +5,8 @@ meta:
   type: es-sink-connector-sink
   topic: testing
 custom:
-  url: http://127.0.1:9200
-  secureEnabled: false
+  url: http://127.0.0.1:9200
+  secure_enabled: false
   index: test-index
+  username: test
+  password: test
