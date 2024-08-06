@@ -1,9 +1,10 @@
 use crate::config::ElasticSearchConfig;
 use anyhow::Result;
 use async_trait::async_trait;
-use elasticsearch::{auth::Credentials, http::transport::Transport, Elasticsearch, IndexParts};
+use elasticsearch::{auth::Credentials, http::transport::Transport, Elasticsearch, IndexParts, Index};
 use fluvio::Offset;
 use fluvio_connector_common::{tracing, LocalBoxSink, Sink};
+use serde_json::Value;
 
 pub(crate) struct ElasticSearchSink {
     client: Elasticsearch,
@@ -37,18 +38,17 @@ impl Sink<String> for ElasticSearchSink {
     async fn connect(self, _offset: Option<Offset>) -> Result<LocalBoxSink<String>> {
         let client = self.client;
 
-        let request = client
-            .index(IndexParts::Index(&self.index));
-
         let unfold = futures::sink::unfold(
-            request,
-            |request, record: String| async move {
+            (client, self.index),
+            |(client, index_name), record: String| async move {
                 tracing::trace!("{:?}", record);
+                let request: Index<()> = client.index(IndexParts::Index(&index_name));
+                let obj: Value = serde_json::from_str(&record)?;
                 request.clone()
-                    .body(serde_json::from_str(&record)?)
+                    .body(obj)
                     .send()
                     .await?;
-                Ok::<_, anyhow::Error>(request)
+                Ok::<_, anyhow::Error>((client, index_name))
             },
         );
         Ok(Box::pin(unfold))
