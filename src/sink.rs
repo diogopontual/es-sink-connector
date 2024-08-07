@@ -37,17 +37,24 @@ impl ElasticSearchSink {
 impl Sink<String> for ElasticSearchSink {
     async fn connect(self, _offset: Option<Offset>) -> Result<LocalBoxSink<String>> {
         let client = self.client;
-
         let unfold = futures::sink::unfold(
             (client, self.index),
             |(client, index_name), record: String| async move {
                 tracing::trace!("{:?}", record);
                 let request: Index<()> = client.index(IndexParts::Index(&index_name));
-                let obj: Value = serde_json::from_str(&record)?;
-                request.clone()
-                    .body(obj)
-                    .send()
-                    .await?;
+                let parse_result: serde_json::error::Result<Value> = serde_json::from_str(&record);
+                match parse_result {
+                    Ok(obj) => {
+                        request.clone()
+                            .body(obj)
+                            .send()
+                            .await?;
+                        tracing::debug!("Record sent to Elasticsearch");
+                    },
+                    ElasticsearchError => {
+                        tracing::error!("Error parsing record: {:?}", ElasticsearchError);
+                    }
+                }
                 Ok::<_, anyhow::Error>((client, index_name))
             },
         );
