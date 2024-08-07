@@ -51,8 +51,8 @@ impl Sink<String> for ElasticSearchSink {
                             .await?;
                         tracing::debug!("Record sent to Elasticsearch");
                     },
-                    ElasticsearchError => {
-                        tracing::error!("Error parsing record: {:?}", ElasticsearchError);
+                    Err(error) => {
+                        tracing::error!("Error parsing record: {:?}", error);
                     }
                 }
                 Ok::<_, anyhow::Error>((client, index_name))
