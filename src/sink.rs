@@ -1,7 +1,9 @@
 use crate::config::ElasticSearchConfig;
 use anyhow::Result;
 use async_trait::async_trait;
-use elasticsearch::{auth::Credentials, http::transport::Transport, Elasticsearch, IndexParts, Index};
+use elasticsearch::{
+    auth::Credentials, http::transport::Transport, Elasticsearch, Index, IndexParts,
+};
 use fluvio::Offset;
 use fluvio_connector_common::{tracing, LocalBoxSink, Sink};
 use serde_json::Value;
@@ -41,20 +43,19 @@ impl Sink<String> for ElasticSearchSink {
             (client, self.index),
             |(client, index_name), record: String| async move {
                 tracing::trace!("{:?}", record);
-                let request: Index<()> = client.index(IndexParts::Index(&index_name));
-                let parse_result: serde_json::error::Result<Value> = serde_json::from_str(&record);
-                match parse_result {
-                    Ok(obj) => {
-                        request.clone()
-                            .body(obj)
-                            .send()
-                            .await?;
-                        tracing::debug!("Record sent to Elasticsearch");
-                    },
+
+                let value: Value = match serde_json::from_str(&record) {
+                    Ok(value) => value,
                     Err(error) => {
                         tracing::error!("Error parsing record: {:?}", error);
+                        return Err(anyhow::anyhow!("Error parsing record: {:?}", error));
                     }
-                }
+                };
+
+                let request: Index<()> = client.index(IndexParts::Index(&index_name));
+                let _response = request.body(value).send().await?;
+                tracing::debug!("Record sent to Elasticsearch");
+
                 Ok::<_, anyhow::Error>((client, index_name))
             },
         );
