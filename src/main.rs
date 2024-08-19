@@ -17,8 +17,18 @@ async fn start(config: ElasticSearchConfig, mut stream: impl ConsumerStream) -> 
 
     while let Some(item) = stream.next().await {
         let str = String::from_utf8(item?.as_ref().to_vec())?;
-        sink.send(str).await?;
+        let result = sink.send(str).await;
+        tracing::trace!("Record sent to Elasticsearch");
+        match result {
+            Ok(_) => {
+                println!("Success");
+                tracing::debug!("Record processed by Elasticsearch");
+            }
+            Err(error) => {
+                println!("{:#?}", error);
+                tracing::error!("Error sending record to Elasticsearch: {:?}", error);
+            }
+        }
     }
-    
     Ok(())
 }
