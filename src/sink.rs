@@ -1,7 +1,14 @@
 use crate::config::ElasticSearchConfig;
 use anyhow::Result;
 use async_trait::async_trait;
-use elasticsearch::{http::transport::Transport, Elasticsearch, Index, IndexParts};
+use elasticsearch::{
+    auth::Credentials,
+    http::{
+        transport::{SingleNodeConnectionPool, TransportBuilder},
+        Url,
+    },
+    Elasticsearch, Index, IndexParts,
+};
 use fluvio::Offset;
 use fluvio_connector_common::{tracing, LocalBoxSink, Sink};
 use serde_json::Value;
@@ -13,22 +20,13 @@ pub(crate) struct ElasticSearchSink {
 
 impl ElasticSearchSink {
     pub(crate) fn new(config: ElasticSearchConfig) -> Result<Self> {
-        let client: Elasticsearch;
-        match config.secure_enabled {
-            false => {
-                let transport = Transport::single_node(&config.url)?;
-                client = Elasticsearch::new(transport);
-            }
-            _ => {
-                let concatenated = format!(
-                    "http://{}:{}@{}",
-                    config.username, config.password, config.url
-                );
-                let transport = Transport::single_node(&concatenated)?;
-                client = Elasticsearch::new(transport);
-            }
-        }
-
+        let conn_pool = SingleNodeConnectionPool::new(Url::parse(&config.url)?);
+        let credentials = Credentials::Basic(config.username, config.password);
+        let transport = TransportBuilder::new(conn_pool)
+            .auth(credentials)
+            .disable_proxy()
+            .build()?;
+        let client: Elasticsearch = Elasticsearch::new(transport);
         Ok(Self {
             client,
             index: config.index,

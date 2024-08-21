@@ -5,8 +5,7 @@ meta:
   type: es-sink-connector-sink
   topic: testing
 custom:
-  url: 127.0.0.1:9200
-  secure_enabled: true
+  url: http://127.0.0.1:9200
   index: test-index
   username: elastic
   password: changeme
